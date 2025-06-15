@@ -1,45 +1,45 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
+#include "hardware/irq.h"
 
 #include "lcd.h"
 #include "helper.h"
 #include "FreeRTOS.h"
 #include "task.h"
-#include "pico/cyw43_arch.h"
+
 #include "semphr.h"
 
-#define IN_PIN 15
 #define PWM_PIN 16
+#define INPUT_PIN 15
+#define PIN_SDA 0
+#define PIN_SCL 1
 
 
-TaskHandle_t Freq_Counter;
-TaskHandle_t Printer;
 SemaphoreHandle_t xFlancoSemaphore ;
 
-void task_fq_counter(void *params){
-    bool actual = false;
-    bool anterior = false;
-    // Aseguro que sea consistente el bloqueo
-    TickType_t tick = xTaskGetTickCount();
+void fq_ISR(uint gpio, uint32_t event_mask){
+    static BaseType_t xTask = pdFALSE ;
+    xSemaphoreGiveFromISR(xFlancoSemaphore , &xTask);
+    portYIELD_FROM_ISR(xTask);
+}
+
+
+
+void task_print(void *params){
+    char buffer[16];
 
     while(1) {
-        anterior = gpio_get(IN_PIN);
-        for (int i = 0; i < 1000; i++){
-           actual = gpio_get(IN_PIN);
-            if((actual != anterior) && (actual == true)){
-                xSemaphoreGive(xFlancoSemaphore);
-            }
-            anterior = actual;
-        vTaskDelayUntil(&tick, pdMS_TO_TICKS(0.1));
-        
-        }
-    }
-}
-void task_print(void *params){
-    while(1){
-        uint32_t count = uxSemaphoreGetCount(xFlancoSemaphore);
+        //int cuenta = uxSemaphoreGetCount(xFlancoSemaphore);
+        //sprintf(buffer, "Frec: %d Hz", cuenta);
+        //printf("Valor del semáforo: %d\n", cuenta);
+        int x = uxSemaphoreGetCount(xFlancoSemaphore);
+        sprintf(buffer, "%d", x);
+        //sprintf(buffer, "Frec: %d Hz", uxSemaphoreGetCount(xFlancoSemaphore));
+        lcd_clear();
+        //printf("%s\n", buffer);
+        lcd_set_cursor(1, 0);
+   		lcd_string(buffer);
         xQueueReset(xFlancoSemaphore);
-        printf ("La frecuancia es de %d \n", count);
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
@@ -48,17 +48,38 @@ void task_print(void *params){
 int main()
 {
     stdio_init_all();
-    //cyw43_arch_init();
-    gpio_init (IN_PIN);
+
+    //Inicializo los pines
     gpio_init(PWM_PIN);
-    gpio_set_dir(IN_PIN, false);
     gpio_set_dir(PWM_PIN, true);
-    pwm_user_init(16, 7777);
+    gpio_init(INPUT_PIN);
+    gpio_set_dir(INPUT_PIN, false);
 
-    //vSemaphoreCreateBinary(xFlancoSemaphore);
+    // Inicializo el I2C a 100 KHz
+    i2c_init(i2c0, 100000);
+
+    // Habilito el I2C en los GPIOs
+    gpio_set_function(PIN_SDA, GPIO_FUNC_I2C);
+    gpio_set_function(PIN_SCL, GPIO_FUNC_I2C);
+    gpio_pull_up(PIN_SDA);
+    gpio_pull_up(PIN_SCL);
+
+    //Inicializo la interrupcion
+    gpio_set_irq_enabled_with_callback(INPUT_PIN, GPIO_IRQ_EDGE_RISE, true, fq_ISR);
+
+    //Inicializacion del semaforo
     xFlancoSemaphore = xSemaphoreCreateCounting(10000, 0);
+    
+    //Inicializacion del PWM
+    pwm_user_init(16, 4747);
 
-    xTaskCreate(task_fq_counter, "Freq_Counter", configMINIMAL_STACK_SIZE, NULL, 1,  NULL);
+    //Inicializacion del display
+    lcd_init(i2c0, 0x27);
+    lcd_clear();
+    // Escribe un mensaje
+    //lcd_set_cursor(0, 0);
+    //lcd_string("Hello world!");
+
     xTaskCreate(task_print, "Printer", 4*configMINIMAL_STACK_SIZE, NULL, 2,  NULL);
 
     vTaskStartScheduler();
@@ -66,30 +87,3 @@ int main()
     }
 }
 
-/*
-void task_in(){
-    while(1){
-        if (gpio_get(IN_PIN)){
-            xSemaphoreGive(counting);
-            while (gpio_get(IN_PIN));
-        }
-    }
-}
-void task_freq (){
-     //DE MAYOR PRIORIDAD QUE TASK_IN
-     //ASIGNAR MAYOR STACK SIZE
-    while(1){
-        uint32_t count = uxSemaphoreGetCount(counting);
-        xQueueReset(counting);
-        printf ("La frecuancia es de %d \n", count*10);
-        xTaskDelay(pdMS_TO_TICKS(100));
-    }
-}
-
-main {
-    gpio_init (IN_PIN);
-    gpio_set_dir (IN_PIN , false);
-
-    counting //inicializo semafotor
-}
-    */

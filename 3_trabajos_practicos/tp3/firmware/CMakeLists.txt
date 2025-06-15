@@ -49,9 +49,13 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../helper ${CMAKE_BINARY_DIR}/helper)
 pico_enable_stdio_uart(firmware 0)
 pico_enable_stdio_usb(firmware 1)
 
+
 # Add the standard library to the build
 target_link_libraries(firmware
-        pico_stdlib)
+        pico_stdlib
+        freertos
+        lcd
+        helper)
 
 # Add the standard include files to the build
 target_include_directories(firmware PRIVATE
@@ -60,13 +64,7 @@ target_include_directories(firmware PRIVATE
 
 # Add any user requested libraries
 target_link_libraries(firmware 
-        pico_stdlib
-        freertos
-        pico_cyw43_arch_none
-        lcd
-        hardware_i2c
-        helper
+        
         )
 
 pico_add_extra_outputs(firmware)
-
