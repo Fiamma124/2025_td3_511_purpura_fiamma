@@ -10,10 +10,10 @@
 #define COLUMNAS 4
 #define MAX_INPUT 32
 // Eleccion de GPIO para SDA y SCL para el LCD
-#define SDA_GPIO    0
-#define SCL_GPIO    1
+#define SDA_GPIO    14
+#define SCL_GPIO    15
 //Eleccion de pines
-#define IN_PIN_TACOMETRO 10
+#define IN_PIN_TACOMETRO 27
 const uint FILA_PINS[FILAS] = {2, 3, 4, 5};
 const uint COLUMNA_PINS[COLUMNAS] = {6, 7, 8, 9};
 
