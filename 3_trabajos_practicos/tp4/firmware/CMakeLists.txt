@@ -61,6 +61,7 @@ target_link_libraries(firmware
         bmp280
         freertos
         lcd
+        hardware_pwm
         )
 
 pico_add_extra_outputs(firmware)
