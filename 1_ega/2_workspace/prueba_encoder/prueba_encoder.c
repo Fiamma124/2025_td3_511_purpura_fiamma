@@ -4,8 +4,13 @@
 #include "task.h"
 #include "hardware/irq.h"
 #include "semphr.h"
+#include "lcd.h"
 
 #define IN_PIN 27
+// Eleccion de GPIO para SDA y SCL para el LCD
+#define SDA_GPIO    14
+#define SCL_GPIO    15
+
 SemaphoreHandle_t xFlancoSemaphore ;
 
 void fq_ISR(uint gpio, uint32_t event_mask) {
@@ -20,32 +25,8 @@ void fq_ISR(uint gpio, uint32_t event_mask) {
     }
 }
 
-void Tacometro(void *params) {
-    int counter = 0;
-    float vueltas = 0;
-    float vel_pwm = 0;
 
-    while(1) {
-        counter = 0;
 
-        // Dentro de la ventana de 1 segundo, contamos flancos
-        TickType_t start = xTaskGetTickCount();
-        while (xTaskGetTickCount() - start < pdMS_TO_TICKS(1000)) {
-            if (xSemaphoreTake(xFlancoSemaphore, pdMS_TO_TICKS(50)) == pdTRUE) {
-                counter++;
-            }
-        }
-
-        vueltas = counter / 21.0f;
-        //vel_pwm = counter * PENDIENTE + ORDENADA;
-
-        printf("Activaciones por segundo: %d\n", counter);
-        printf("Vueltas por segundo: %.2f\n", vueltas);
-        //printf("Velocidad PWM: %.2f\n", vel_pwm);
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-}
-/*
 void Tacometro(void *params) {
     int counter = 0;
     float vueltas = 0;
@@ -79,7 +60,7 @@ void Tacometro(void *params) {
 
         vTaskDelay(pdMS_TO_TICKS(1));  // respiro para evitar uso 100% CPU
     }
-}*/
+}
 
 int main()
 {
@@ -87,12 +68,25 @@ int main()
 
     gpio_init(IN_PIN);
     gpio_set_dir(IN_PIN, GPIO_IN);
+    //CONFIUGRACION DEL DISPLAY
+    i2c_init(i2c0, 100000);
+    //Seteo la funcion
+    gpio_set_function(SDA_GPIO, GPIO_FUNC_I2C);
+    gpio_set_function(SCL_GPIO, GPIO_FUNC_I2C);
+    // Habilito pull-ups
+    gpio_pull_up(SDA_GPIO);
+    gpio_pull_up(SCL_GPIO);
+    //Inicializo el display
+    lcd_init(i2c0, 0x27 );
+    lcd_clear();
+    lcd_set_cursor(0, 0);
+    lcd_string("Hello world!");
     //gpio_pull_down(IN_PIN);
     //Inicializo la interrupcion
-    gpio_set_irq_enabled_with_callback(IN_PIN, GPIO_IRQ_EDGE_RISE, true, fq_ISR);
+    //gpio_set_irq_enabled_with_callback(IN_PIN, GPIO_IRQ_EDGE_RISE, true, fq_ISR);
 
     //Inicializacion del semaforo
-    xFlancoSemaphore = xSemaphoreCreateCounting(10000, 0);
+    //xFlancoSemaphore = xSemaphoreCreateCounting(10000, 0);
     // Crear la tarea
     xTaskCreate(Tacometro, "Tacometro", configMINIMAL_STACK_SIZE + 100, NULL, 1, NULL);
 

@@ -5,25 +5,29 @@
 #include "task.h"
 #include "queue.h"
 #include "hardware/pwm.h"
+#include "string.h"
 
 // Pines para control de dirección y PWM
-#define MOTOR_IN1 20
-#define MOTOR_IN2 21
-#define MOTOR_PWM 22  // GPIO con soporte PWM
+#define MOTOR_M2_IN1 18
+#define MOTOR_M2_IN2 19
+#define MOTOR_M1_IN1 20
+#define MOTOR_M1_IN2 21
+#define MOTOR_M2_PWM 22  // GPIO con soporte PWM
+#define MOTOR_M1_PWM 26  // GPIO con soporte PWM
 //MACROS PARA EL TACOMETRO
 #define IN_PIN_TACOMETRO 27
 #define PENDIENTE 9.75
 #define ORDENADA -18
 #define VENTANA_MS 100
 // Configuración de la frecuencia PWM (Hz)
-#define PWM_FREQ 1000
+#define PWM_FREQ 15000
 //MACROS DEL TECLADO
 #define FILAS 4
 #define COLUMNAS 4
 #define MAX_INPUT 32
 
-const uint FILA_PINS[FILAS] = {2, 3, 4, 5};
-const uint COLUMNA_PINS[COLUMNAS] = {6, 7, 8, 9};
+const uint FILA_PINS[FILAS] = {6, 7, 8, 9};
+const uint COLUMNA_PINS[COLUMNAS] = {10, 11, 12, 13};
 const char teclas[FILAS][COLUMNAS] = {
     {'1', '2', '3', 'A'},
     {'4', '5', '6', 'B'},
@@ -78,53 +82,85 @@ char escanear_teclado() {
 
 void motor_init() {
     float clock = 125000000 ;
+    float divider = clock / (PWM_FREQ * (255+1));
     // Dirección
-    gpio_init(MOTOR_IN1);
-    gpio_set_dir(MOTOR_IN1, GPIO_OUT);
-    gpio_put(MOTOR_IN1, 0);
+    gpio_init(MOTOR_M1_IN1);
+    gpio_set_dir(MOTOR_M1_IN1, GPIO_OUT);
+    gpio_put(MOTOR_M1_IN1, 0);
 
-    gpio_init(MOTOR_IN2);
-    gpio_set_dir(MOTOR_IN2, GPIO_OUT);
-    gpio_put(MOTOR_IN2, 0);
+    gpio_init(MOTOR_M1_IN2);
+    gpio_set_dir(MOTOR_M1_IN2, GPIO_OUT);
+    gpio_put(MOTOR_M1_IN2, 0);
 
-    // PWM en MOTOR_PWM (GPIO 16)
-    gpio_set_function(MOTOR_PWM, GPIO_FUNC_PWM);
-    uint slice = pwm_gpio_to_slice_num(MOTOR_PWM);
-    float diviver = clock / (PWM_FREQ * (255+1));
-    pwm_set_clkdiv(slice , diviver);
-    pwm_set_wrap(slice, 255);  // resolución de 8 bits (0-255)
+    gpio_init(MOTOR_M2_IN1);
+    gpio_set_dir(MOTOR_M2_IN1, GPIO_OUT);
+    gpio_put(MOTOR_M2_IN1, 0);
 
-    pwm_set_chan_level(slice, pwm_gpio_to_channel(MOTOR_PWM), 0);  // inicialmente apagado
-    pwm_set_enabled(slice, true);
+    gpio_init(MOTOR_M2_IN2);
+    gpio_set_dir(MOTOR_M2_IN2, GPIO_OUT);
+    gpio_put(MOTOR_M2_IN2, 0);
+
+
+    // PWM Motor 1
+    gpio_set_function(MOTOR_M1_PWM, GPIO_FUNC_PWM);
+    uint slice1 = pwm_gpio_to_slice_num(MOTOR_M1_PWM);
+    pwm_set_clkdiv(slice1, divider);
+    pwm_set_wrap(slice1, 255);
+    pwm_set_chan_level(slice1, pwm_gpio_to_channel(MOTOR_M1_PWM), 0);
+    pwm_set_enabled(slice1, true);
+
+    // PWM Motor 2
+    gpio_set_function(MOTOR_M2_PWM, GPIO_FUNC_PWM);
+    uint slice2 = pwm_gpio_to_slice_num(MOTOR_M2_PWM);
+    pwm_set_clkdiv(slice2, divider);
+    pwm_set_wrap(slice2, 255);
+    pwm_set_chan_level(slice2, pwm_gpio_to_channel(MOTOR_M2_PWM), 0);
+    pwm_set_enabled(slice2, true);
 }
 
 // Cambiar dirección del motor
-void motor_set_direction(bool forward) {
-    gpio_put(MOTOR_IN1, forward ? 1 : 0);
-    gpio_put(MOTOR_IN2, forward ? 0 : 1);
+void motor_set_direction(uint8_t motor, bool forward) {
+    if (motor == 1) {
+        gpio_put(MOTOR_M1_IN1, forward ? 1 : 0);
+        gpio_put(MOTOR_M1_IN2, forward ? 0 : 1);
+    } else if (motor == 2) {
+        gpio_put(MOTOR_M2_IN1, forward ? 1 : 0);
+        gpio_put(MOTOR_M2_IN2, forward ? 0 : 1);
+    }
 }
 
 // Cambiar velocidad (0 a 255)
 void motor_set_speed(uint8_t speed) {
-    uint slice = pwm_gpio_to_slice_num(MOTOR_PWM);
-    pwm_set_chan_level(slice, pwm_gpio_to_channel(MOTOR_PWM), speed);
+    uint slice1 = pwm_gpio_to_slice_num(MOTOR_M1_PWM);
+    uint slice2 = pwm_gpio_to_slice_num(MOTOR_M2_PWM);
+
+    pwm_set_chan_level(slice1, pwm_gpio_to_channel(MOTOR_M1_PWM), speed);
+    pwm_set_chan_level(slice2, pwm_gpio_to_channel(MOTOR_M2_PWM), speed);
 }
 
 
 
 void task_motor(void *params) {
     motor_init();
-    motor_set_direction(true);  // Sentido "hacia adelante"
-    uint16_t speed = 255;
+    motor_set_direction(1,false);  // Sentido "hacia adelante"
+    motor_set_direction(2,false);
+    uint16_t speed = 0;
+    //unsigned int sentido = 0;
 
     while (1) {
         motor_set_speed(speed);
+        
         if (xQueueReceive(q_vel_deseada, &speed, portMAX_DELAY)) {
 
             printf("Nueva velocidad recibida: %u\n", speed);
 
             motor_set_speed(speed);
+            vTaskDelay(pdMS_TO_TICKS(2500));
         }
+            
+           speed = 0;
+           //vTaskDelay(pdMS_TO_TICKS(100));
+        
     }
 }
 
@@ -142,8 +178,12 @@ void task_matrix(void *params) {
 
             if (index < MAX_INPUT && tecla_actual != '#') {
                 buffer[index++] = tecla_actual;
+                
             }
-
+            if (tecla_actual == '*'){
+                index = 0;
+                memset(buffer, 0, sizeof(buffer));
+            }
             if (tecla_actual == '#') {
                 buffer[index] = '\0';
                 printf("Ingresado: %s\n", buffer);

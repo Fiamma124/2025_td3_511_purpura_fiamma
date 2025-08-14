@@ -15,9 +15,9 @@ if(WIN32)
 else()
     set(USERHOME $ENV{HOME})
 endif()
-set(sdkVersion 2.1.1)
-set(toolchainVersion 14_2_Rel1)
-set(picotoolVersion 2.1.1)
+set(sdkVersion 2.2.0)
+set(toolchainVersion RISCV_ZCB_RPI_2_1_1_3)
+set(picotoolVersion 2.2.0)
 set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
 if (EXISTS ${picoVscode})
     include(${picoVscode})
@@ -28,43 +28,36 @@ set(PICO_BOARD pico2_w CACHE STRING "Board type")
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
-project(prueba_encoder C CXX ASM)
+project(motores_baremetal C CXX ASM)
 
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(prueba_encoder prueba_encoder.c )
+add_executable(motores_baremetal motores_baremetal.c )
 
-# Add external FreeRTOS library
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../helper ${CMAKE_BINARY_DIR}/helper)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../freertos ${CMAKE_BINARY_DIR}/freertos)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../lcd ${CMAKE_BINARY_DIR}/lcd)
-
-pico_set_program_name(prueba_encoder "prueba_encoder")
-pico_set_program_version(prueba_encoder "0.1")
+pico_set_program_name(motores_baremetal "motores_baremetal")
+pico_set_program_version(motores_baremetal "0.1")
 
 # Modify the below lines to enable/disable output over UART/USB
-pico_enable_stdio_uart(prueba_encoder 0)
-pico_enable_stdio_usb(prueba_encoder 1)
+pico_enable_stdio_uart(motores_baremetal 0)
+pico_enable_stdio_usb(motores_baremetal 1)
 
 # Add the standard library to the build
-target_link_libraries(prueba_encoder
+target_link_libraries(motores_baremetal
         pico_stdlib
-        helper
-        freertos
-        lcd)
+        hardware_pwm)
 
 # Add the standard include files to the build
-target_include_directories(prueba_encoder PRIVATE
+target_include_directories(motores_baremetal PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
 )
 
 # Add any user requested libraries
-target_link_libraries(prueba_encoder 
+target_link_libraries(motores_baremetal 
         
         )
 
-pico_add_extra_outputs(prueba_encoder)
+pico_add_extra_outputs(motores_baremetal)
 

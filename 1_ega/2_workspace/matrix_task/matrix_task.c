@@ -14,8 +14,8 @@
 #define SCL_GPIO    15
 //Eleccion de pines
 #define IN_PIN_TACOMETRO 27
-const uint FILA_PINS[FILAS] = {2, 3, 4, 5};
-const uint COLUMNA_PINS[COLUMNAS] = {6, 7, 8, 9};
+const uint FILA_PINS[FILAS] = {6, 7, 8, 9};
+const uint COLUMNA_PINS[COLUMNAS] = {10, 11, 12, 13};
 
 //Defino mi cola
 QueueHandle_t q_matrix ;
@@ -169,7 +169,7 @@ int main() {
     gpio_set_dir(IN_PIN_TACOMETRO, GPIO_IN);
     gpio_pull_down(IN_PIN_TACOMETRO);
     //CONFIUGRACION DEL DISPLAY
-    i2c_init(i2c0, 100000);
+    i2c_init(i2c1, 100000);
     //Seteo la funcion
     gpio_set_function(SDA_GPIO, GPIO_FUNC_I2C);
     gpio_set_function(SCL_GPIO, GPIO_FUNC_I2C);
@@ -177,7 +177,7 @@ int main() {
     gpio_pull_up(SDA_GPIO);
     gpio_pull_up(SCL_GPIO);
     //Inicializo el display
-    lcd_init(i2c0, 0x27 );
+    lcd_init(i2c1, 0x27 );
     lcd_clear();
     
     //Inicializo mis colas
@@ -187,7 +187,7 @@ int main() {
     //Inicializo mis tareas
     xTaskCreate(task_matrix, "Matrix", 4 * configMINIMAL_STACK_SIZE, NULL, 2, NULL);
     xTaskCreate(task_lcd, "LCD",  configMINIMAL_STACK_SIZE, NULL, 1, NULL);
-    xTaskCreate(Tacometro, "Tacometro", configMINIMAL_STACK_SIZE + 100, NULL, 2, NULL);
+    xTaskCreate(Tacometro, "Tacometro", 2 * configMINIMAL_STACK_SIZE , NULL, 2, NULL);
 
     //Arranca el scheduler
     vTaskStartScheduler();

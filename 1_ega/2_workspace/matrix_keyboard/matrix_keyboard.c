@@ -6,8 +6,8 @@
 #define MAX_INPUT 32
 
 // Pines conectados a filas y columnas
-const uint FILA_PINS[FILAS] = {2, 3, 4, 5};
-const uint COLUMNA_PINS[COLUMNAS] = {6, 7, 8, 9};
+const uint FILA_PINS[FILAS] = {6, 7, 8, 9};
+const uint COLUMNA_PINS[COLUMNAS] = {10, 11, 12, 13};
 
 
 // Mapa del teclado
